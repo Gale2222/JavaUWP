@@ -410,16 +410,18 @@ static bool PreloadJvm(const std::wstring& exeDir, const std::wstring& jreDir, c
 
     // Preload the JRE CRT/runtime DLLs from jre\bin so jvm.dll can resolve
     // its non-system imports while running inside the app package.
-    loadPackaged(L"jre\\bin\\msvcp140.dll", L"msvcp140.dll");
-    loadPackaged(L"jre\\bin\\vcruntime140.dll", L"vcruntime140.dll");
+	loadPackaged(L"jre\\bin\\vcruntime140.dll", L"vcruntime140.dll");
     loadPackaged(L"jre\\bin\\vcruntime140_1.dll", L"vcruntime140_1.dll");
-    loadPackaged(L"jre\\bin\\java.dll", L"java.dll");
+    loadPackaged(L"jre\\bin\\msvcp140.dll", L"msvcp140.dll");
     loadPackaged(L"jre\\bin\\jli.dll", L"jli.dll");
 
     *jvmModule = loadPackaged(L"jre\\bin\\server\\jvm.dll", L"jvm.dll");
     if (!*jvmModule) {
         return false;
     }
+	
+	loadPackaged(L"jre\\bin\\java.dll", L"java.dll");
+	loadPackaged(L"jre\\bin\\awt.dll", L"awt.dll");
 
     WriteLog(L"JVM DLLs loaded");
     return true;
@@ -470,11 +472,12 @@ static bool RunEmbeddedMinecraft(const std::wstring& exeDir,
 
     std::vector<std::string> vmOptionStorage;
     vmOptionStorage.reserve(16);
+	vmOptionStorage.push_back("-XX:-OmitStackTraceInFastThrow");
     vmOptionStorage.push_back("-Xmx4G");
     vmOptionStorage.push_back("-Xms512M");
     vmOptionStorage.push_back("--enable-native-access=ALL-UNNAMED");
     vmOptionStorage.push_back("-Djava.home=" + w2a(fwd(jreDir)));
-    vmOptionStorage.push_back("-Djava.security.properties==" + w2a(fwd(jreDir + L"\\conf\\security\\xbox.properties")));
+    vmOptionStorage.push_back("-Djava.security.properties=" + w2a(fwd(jreDir + L"\\conf\\security\\xbox.properties")));
     vmOptionStorage.push_back("-Djava.security.egd=file:/dev/./urandom");
     vmOptionStorage.push_back("-Djava.io.tmpdir=" + w2a(fwd(jnaTmpDir)));
     vmOptionStorage.push_back("-Djna.tmpdir=" + w2a(fwd(jnaTmpDir)));
@@ -548,30 +551,37 @@ static bool RunEmbeddedMinecraft(const std::wstring& exeDir,
     if (!mainClass || CheckAndLogJavaException(env, L"FindClass(KnotClient)")) {
         return false;
     }
-
+	
+	WriteLogF(L"Main Class is correct.");
     jmethodID mainMethod = env->GetStaticMethodID(mainClass, "main", "([Ljava/lang/String;)V");
     if (!mainMethod || CheckAndLogJavaException(env, L"GetStaticMethodID(main)")) {
         return false;
     }
-
+	
+	WriteLogF(L"Main Method is correct.");
     jclass stringClass = env->FindClass("java/lang/String");
     if (!stringClass || CheckAndLogJavaException(env, L"FindClass(String)")) {
         return false;
     }
 
+	WriteLogF(L"String Class is correct.");
     jobjectArray argv = env->NewObjectArray(static_cast<jsize>(appArgs.size()), stringClass, nullptr);
     if (!argv || CheckAndLogJavaException(env, L"NewObjectArray")) {
         return false;
     }
+	
+	WriteLogF(L"New Object Array is correct.");
 
     for (jsize i = 0; i < static_cast<jsize>(appArgs.size()); ++i) {
         jstring value = env->NewStringUTF(appArgs[i].c_str());
         if (!value || CheckAndLogJavaException(env, L"NewStringUTF")) {
+			WriteLogF(L"An Argument failed. %d", appArgs[i]);
             return false;
         }
         env->SetObjectArrayElement(argv, i, value);
         env->DeleteLocalRef(value);
         if (CheckAndLogJavaException(env, L"SetObjectArrayElement")) {
+			WriteLogF(L"An Object Array Element failed");
             return false;
         }
     }
@@ -579,7 +589,7 @@ static bool RunEmbeddedMinecraft(const std::wstring& exeDir,
     WriteLog(L"Invoking KnotClient.main via embedded JVM");
     env->CallStaticVoidMethod(mainClass, mainMethod, argv);
     if (CheckAndLogJavaException(env, L"CallStaticVoidMethod(main)")) {
-        return false;
+		return false;
     }
 
     WriteLog(L"KnotClient.main returned");

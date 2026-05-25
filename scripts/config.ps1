@@ -21,7 +21,7 @@ $ProjectConfig = [ordered]@{
     StagingDir               = "staging"
     CacheDir                 = "staging/cache"
     BuildDir                 = "staging/build"
-    OutputDir                = "output"
+    OutputDir                = "outputs"
     GameDir                  = "staging/cache/gameDir"
     AssetsDir                = "staging/cache/assets"
     NativesDir               = "staging/cache/natives-1.21"
@@ -33,5 +33,5 @@ $ProjectConfig = [ordered]@{
     AppxFileName             = "MC_Java_1.0.0.0.appx"
     CertificateFileName      = "MC_DevMode.pfx"
     CertificatePassword      = "devmode"
-    DefaultCertificateSubject = "CN=MinecraftJavaUWP Dev"
+    DefaultCertificateSubject = "CN=BanditVault"
 }
